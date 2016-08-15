@@ -10,7 +10,7 @@ const expect = _chai.expect;
 const _testHelper = require('wysknd-test');
 const _testValueProvider = _testHelper.testValueProvider;
 const _consoleHelper = _testHelper.consoleHelper;
-const LambdaWrapper = _testHelper.AwsLambdaWrapper;
+const AwsLambdaWrapper = _testHelper.AwsLambdaWrapper;
 const _rewire = require('rewire');
 
 let HandlerWrapper = null;
@@ -34,10 +34,10 @@ describe('HandlerWrapper', () => {
         it('should throw an error if invoked without a valid app name', () => {
             const error = 'Invalid app name specified (arg #1)';
             _testValueProvider.allButString('').forEach((appName) => {
-                const testWrapper = () => {
+                const testCase = () => {
                     return new HandlerWrapper(appName);
                 };
-                expect(testWrapper).to.throw(error);
+                expect(testCase).to.throw(error);
             });
         });
 
@@ -53,22 +53,22 @@ describe('HandlerWrapper', () => {
         it('should throw an error if invoked without a valid handler', () => {
             const error = 'Invalid handler specified (arg #1)';
             _testValueProvider.allButFunction().forEach((handler) => {
-                const testWrapper = () => {
+                const testCase = () => {
                     const wrapper = new HandlerWrapper(DEFAULT_APP_NAME);
                     wrapper.wrap(handler);
                 };
-                expect(testWrapper).to.throw(error);
+                expect(testCase).to.throw(error);
             });
         });
 
         it('should throw an error if invoked without a valid handler', () => {
             const error = 'Invalid lambda function name specified (arg #2)';
             _testValueProvider.allButString('').forEach((lambdaName) => {
-                const testWrapper = () => {
+                const testCase = () => {
                     const wrapper = new HandlerWrapper(DEFAULT_APP_NAME);
                     wrapper.wrap(DEFAULT_HANDLER, lambdaName);
                 };
-                expect(testWrapper).to.throw(error);
+                expect(testCase).to.throw(error);
             });
         });
 
@@ -82,36 +82,37 @@ describe('HandlerWrapper', () => {
         describe('[wrapper behavior]', () => {
             let _loggerProviderMock = null;
 
-            function _initTestWrapper(alias) {
+            function _initLambdaArgs(alias) {
                 const handler = _sinon.spy();
-                const testWrapper = new LambdaWrapper(handler, {}, {
+                const args = new AwsLambdaWrapper(handler, {}, {
                     alias: alias
                 });
 
-                return testWrapper;
+                return args;
             }
 
             function _testEnv(alias, env) {
                 env = env || alias;
 
                 const wrapper = _createWrapper();
-                const testWrapper = _initTestWrapper(alias);
-                const handler = wrapper.wrap(testWrapper.handler, DEFAULT_LAMBDA_NAME);
+                const lambdaArgs = _initLambdaArgs(alias);
+                const wrappedHandler = wrapper.wrap(lambdaArgs.handler, DEFAULT_LAMBDA_NAME);
 
                 process.env.NODE_ENV = '';
-                _invokeHandler(handler, testWrapper);
+                _invokeHandler(wrappedHandler, lambdaArgs);
                 expect(process.env.NODE_ENV).to.equal(env);
             }
 
-            function _invokeHandler(handler, testWrapper) {
+            function _invokeHandler(wrappedHandler, lambdaArgs) {
                 _consoleHelper.mute();
-                handler(testWrapper.event, testWrapper.context, testWrapper.callback);
+                wrappedHandler(lambdaArgs.event, lambdaArgs.context, lambdaArgs.callback);
                 _consoleHelper.unmute();
             }
 
             beforeEach(() => {
                 //Initialize the config module so that tests don't result in 
                 //warning messages.
+                process.env.NODE_ENV = '';
                 const config = require('config');
 
                 _loggerProviderMock = {
@@ -154,13 +155,13 @@ describe('HandlerWrapper', () => {
                 const env = 'dev';
 
                 const wrapper = _createWrapper(appName);
-                const testWrapper = _initTestWrapper(env);
-                const handler = wrapper.wrap(testWrapper.handler, lambdaName);
+                const lambdaArgs = _initLambdaArgs(env);
+                const wrappedHandler = wrapper.wrap(lambdaArgs.handler, lambdaName);
 
                 expect(_loggerProviderMock.configure).to.not.have.been.called;
                 expect(_loggerProviderMock.getLogger).to.not.have.been.called;
 
-                _invokeHandler(handler, testWrapper);
+                _invokeHandler(wrappedHandler, lambdaArgs);
 
                 expect(_loggerProviderMock.configure).to.have.been.calledOnce;
                 expect(_loggerProviderMock.getLogger).to.have.been.calledOnce;
@@ -179,30 +180,30 @@ describe('HandlerWrapper', () => {
 
             it('should invoke the handler after configuration is complete', () => {
                 const wrapper = _createWrapper();
-                const testWrapper = _initTestWrapper();
+                const lambdaArgs = _initLambdaArgs();
                 const actualHandler = _sinon.spy();
-                const handler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
+                const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
 
                 expect(actualHandler).to.not.have.been.called;
 
-                _invokeHandler(handler, testWrapper);
+                _invokeHandler(wrappedHandler, lambdaArgs);
 
                 expect(actualHandler).to.have.been.calledOnce;
-                expect(actualHandler.args[0][0]).to.equal(testWrapper.event);
-                expect(actualHandler.args[0][1]).to.equal(testWrapper.context);
-                expect(actualHandler.args[0][2]).to.equal(testWrapper.callback);
+                expect(actualHandler.args[0][0]).to.equal(lambdaArgs.event);
+                expect(actualHandler.args[0][1]).to.equal(lambdaArgs.context);
+                expect(actualHandler.args[0][2]).to.equal(lambdaArgs.callback);
             });
 
             it('should include logger, env and config as an additional argument to the handler', () => {
                 const env = 'foo';
                 const wrapper = _createWrapper();
-                const testWrapper = _initTestWrapper(env);
+                const lambdaArgs = _initLambdaArgs(env);
                 const actualHandler = _sinon.spy();
-                const handler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
+                const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
 
                 expect(actualHandler).to.not.have.been.called;
 
-                _invokeHandler(handler, testWrapper);
+                _invokeHandler(wrappedHandler, lambdaArgs);
 
                 expect(actualHandler).to.have.been.calledOnce;
                 const execInfo = actualHandler.args[0][3];
