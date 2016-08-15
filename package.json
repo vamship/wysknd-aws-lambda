@@ -1,6 +1,6 @@
 {
   "name": "wysknd-aws-lambda",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Library containing common utilities and boilerplate for AWS Lambda functions",
   "main": "lib/index.js",
   "scripts": {
