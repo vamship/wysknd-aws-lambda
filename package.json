@@ -15,7 +15,7 @@
   "dependencies": {
     "config": "^1.21.0",
     "winston": "^2.2.0",
-    "wysknd-common": "0.0.2"
+    "wysknd-common": "^0.0.2"
   },
   "devDependencies": {
     "chai": "^3.5.0",
