@@ -12,9 +12,11 @@ var _index = require('../../lib/index');
 describe('index', function() {
     it('should implement methods required by the interface', function() {
         expect(_index.HandlerWrapper).to.be.a('function');
+        expect(_index.Environment).to.be.a('function');
     });
 
     it('should return the correct class for HandlerWrapper', function() {
         expect(_index.HandlerWrapper).to.equal(require('../../lib/handler-wrapper'));
+        expect(_index.Environment).to.equal(require('../../lib/environment'));
     });
 });
