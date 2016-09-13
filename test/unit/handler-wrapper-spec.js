@@ -11,6 +11,7 @@ const _testHelper = require('wysknd-test');
 const _testValueProvider = _testHelper.testValueProvider;
 const _consoleHelper = _testHelper.consoleHelper;
 const AwsLambdaWrapper = _testHelper.AwsLambdaWrapper;
+const AwsLambdaContext = _testHelper.AwsLambdaContext;
 const _rewire = require('rewire');
 
 let HandlerWrapper = null;
@@ -211,6 +212,50 @@ describe('HandlerWrapper', () => {
                 expect(execInfo.logger).to.equal(_loggerProviderMock._logger);
                 expect(execInfo.env).to.equal(env);
                 expect(execInfo.config).to.equal(require('config'));
+            });
+
+            it('should handle any unhandled exceptions thrown by the handler (error instance thrown)', (done) => {
+                const wrapper = _createWrapper();
+                const handlerErrorMessage = 'Something went wrong!';
+                const expectedErrorMessage = `[Error] Error executing lambda. Details: ${handlerErrorMessage}`;
+
+                const actualHandler = () => {
+                    throw new Error(handlerErrorMessage);
+                };
+                const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
+                const context = new AwsLambdaContext();
+
+                _consoleHelper.mute();
+                wrappedHandler({}, new AwsLambdaContext({
+                    alias: 'dev'
+                }).context, (err, data) => {
+                    expect(err).to.be.an.instanceOf(Error);
+                    expect(err.message).to.equal(expectedErrorMessage);
+                    done();
+                }, {});
+                _consoleHelper.unmute();
+            });
+
+            it('should handle any unhandled exceptions thrown by the handler (string errors thrown)', (done) => {
+                const wrapper = _createWrapper();
+                const handlerErrorMessage = 'Something went wrong (not an exception object)!';
+                const expectedErrorMessage = `[Error] Error executing lambda. Details: ${handlerErrorMessage}`;
+
+                const actualHandler = () => {
+                    throw handlerErrorMessage;
+                };
+                const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
+                const context = new AwsLambdaContext();
+
+                _consoleHelper.mute();
+                wrappedHandler({}, new AwsLambdaContext({
+                    alias: 'dev'
+                }).context, (err, data) => {
+                    expect(err).to.be.an.instanceOf(Error);
+                    expect(err.message).to.equal(expectedErrorMessage);
+                    done();
+                }, {});
+                _consoleHelper.unmute();
             });
         });
     });
