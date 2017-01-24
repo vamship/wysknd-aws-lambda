@@ -1,7 +1,6 @@
 /* jshint node:true, expr:true */
 'use strict';
 
-const _sinon = require('sinon');
 const _chai = require('chai');
 _chai.use(require('sinon-chai'));
 _chai.use(require('chai-as-promised'));
@@ -9,8 +8,6 @@ const expect = _chai.expect;
 
 const _testHelper = require('wysknd-test');
 const _testValueProvider = _testHelper.testValueProvider;
-const _consoleHelper = _testHelper.consoleHelper;
-const AwsLambdaWrapper = _testHelper.AwsLambdaWrapper;
 
 let Environment = require('../../lib/environment');
 
@@ -145,7 +142,7 @@ describe('Environment', () => {
         it('should return the correct token value if the environment specified is one of the default environment strings', () => {
             ['dev', 'qa', 'prod'].forEach((envStr) => {
                 const env = new Environment(envStr);
-                expect(env.token).to.equal(envStr)
+                expect(env.token).to.equal(envStr);
             });
         });
 

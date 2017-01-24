@@ -1,7 +1,6 @@
 /* jshint node:true, expr:true */
 'use strict';
 
-var _sinon = require('sinon');
 var _chai = require('chai');
 _chai.use(require('sinon-chai'));
 _chai.use(require('chai-as-promised'));

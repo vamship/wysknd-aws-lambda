@@ -112,10 +112,10 @@ describe('HandlerWrapper', () => {
             }
 
             beforeEach(() => {
-                //Initialize the config module so that tests don't result in 
+                //Initialize the config module so that tests don't result in
                 //warning messages.
                 process.env.NODE_ENV = '';
-                const config = require('config');
+                require('config');
 
                 _loggerProviderMock = {
                     configure: _sinon.spy(),
@@ -225,7 +225,6 @@ describe('HandlerWrapper', () => {
                     throw new Error(handlerErrorMessage);
                 };
                 const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
-                const context = new AwsLambdaContext();
 
                 _consoleHelper.mute();
                 wrappedHandler({}, new AwsLambdaContext({
@@ -247,7 +246,6 @@ describe('HandlerWrapper', () => {
                     throw handlerErrorMessage;
                 };
                 const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
-                const context = new AwsLambdaContext();
 
                 _consoleHelper.mute();
                 wrappedHandler({}, new AwsLambdaContext({
