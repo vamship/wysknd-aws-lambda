@@ -32,6 +32,7 @@ describe('Environment', () => {
             expect(env).to.have.property('env').and.to.be.a('string');
             expect(env).to.have.property('separator').and.to.be.a('string');
             expect(env).to.have.property('isValid').and.to.be.a('boolean');
+            expect(env).to.have.property('token').and.to.be.a('string');
             expect(env).to.have.property('getSuffixString').and.to.be.a('function');
         });
     });
@@ -114,6 +115,53 @@ describe('Environment', () => {
         });
     });
 
+    describe('token', () => {
+
+        it('should return an undefined value if a valid environment string is not specified', () => {
+            _testValueProvider.allButString('').forEach((envStr) => {
+                const env = new Environment(envStr);
+                expect(env.token).to.be.undefined;
+            });
+        });
+
+        it('should return an undefined value if a valid environment is specified, but is not one of the default environments', () => {
+            ['foo', 'bar', 'baz'].forEach((envStr) => {
+                const env = new Environment(envStr);
+                expect(env.token).to.be.undefined;
+            });
+        });
+
+        it('should return an undefined value if a valid environment is specified, but is not present in the custom environment map', () => {
+            ['dev', 'qa', 'prod'].forEach((envStr) => {
+                const env = new Environment(envStr, {
+                    foo: 'foo',
+                    bar: 'bar',
+                    baz: 'baz'
+                });
+                expect(env.token).to.be.undefined;
+            });
+        });
+
+        it('should return the correct token value if the environment specified is one of the default environment strings', () => {
+            ['dev', 'qa', 'prod'].forEach((envStr) => {
+                const env = new Environment(envStr);
+                expect(env.token).to.equal(envStr)
+            });
+        });
+
+        it('should return the correct token value the environment specified is present in the custom environment map', () => {
+            ['foo', 'bar', 'baz'].forEach((envStr) => {
+                const customMap = {
+                    foo: 'foo',
+                    bar: 'bar',
+                    baz: ''
+                };
+                const env = new Environment(envStr, customMap);
+                expect(env.token).to.equal(customMap[envStr]);
+            });
+        });
+    });
+
     describe('getSuffixString()', () => {
         it('should throw an error if invoked without a valid string', () => {
             const error = 'Invalid value specified (arg #1)';
@@ -129,10 +177,12 @@ describe('Environment', () => {
 
         it('should return the original value suffixed with the environment specific suffix', () => {
             ['', 'foo', 'bar', 'baz'].forEach((value) => {
-                const env = _createEnvironment(DEFAULT_ENVIRONMENT);
-                const expectedValue = `${value}${env.separator}${DEFAULT_ENVIRONMENT}`;
+                ['dev', 'qa', 'prod'].forEach((envStr) => {
+                    const env = _createEnvironment(envStr);
+                    const expectedValue = `${value}${env.separator}${envStr}`;
 
-                expect(env.getSuffixString(value)).to.equal(expectedValue);
+                    expect(env.getSuffixString(value)).to.equal(expectedValue);
+                });
             });
         });
 
