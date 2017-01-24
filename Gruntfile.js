@@ -1,12 +1,12 @@
 'use strict';
 
-var _fs = require('fs');
 var _folder = require('wysknd-lib').folder;
 var _utils = require('wysknd-lib').utils;
 
 // -------------------------------------------------------------------------------
 //  Help documentation
 // -------------------------------------------------------------------------------
+/*esfmt-ignore-start*/
 var HELP_TEXT =
 '--------------------------------------------------------------------------------\n' +
 ' Defines tasks that are commonly used during the development process. This      \n' +
@@ -61,6 +61,7 @@ var HELP_TEXT =
 '            during the dev/build process.                                       \n' +
 '                                                                                \n' +
 '--------------------------------------------------------------------------------';
+/*esfmt-ignore-end*/
 module.exports = function(grunt) {
     /* ------------------------------------------------------------------------
      * Initialization of dependencies.
@@ -75,10 +76,11 @@ module.exports = function(grunt) {
      * Build configuration parameters
      * ---------------------------------------------------------------------- */
     var packageConfig = grunt.file.readJSON('package.json') || {};
-    
+
     var ENV = {
         appName: packageConfig.name || '__UNKNOWN__',
         appVersion: packageConfig.version || '__UNKNOWN__',
+    /*esfmt-ignore-start*/
         tree: {                             /* ------------------------------ */
                                             /* <ROOT>                         */
             'lib': {                        /*  |--- lib                      */
@@ -88,11 +90,12 @@ module.exports = function(grunt) {
             },                              /*  |                             */
             'coverage': null                /*  |--- coverage                 */
         }                                   /* ------------------------------ */
+    /*esfmt-ignore-end*/
     };
 
     ENV.ROOT = _folder.createFolderTree('./', ENV.tree);
 
-    // This is the root url prefix for the app, and represents the path 
+    // This is the root url prefix for the app, and represents the path
     // (relative to root), where the app will be available. This value should
     // remain unchanged for most apps, but can be tweaked here if necessary.
     ENV.appRoot = '/' + ENV.appName;
@@ -165,7 +168,7 @@ module.exports = function(grunt) {
                 TEST.allFilesPattern('js')
             ]
         },
-        
+
         /**
          * Configuration for grunt-contrib-watch, which is used to:
          *  - Monitor all source/test files and trigger actions when these
@@ -215,7 +218,7 @@ module.exports = function(grunt) {
         'Executes tests against sources',
         function(testType, target) {
             var testAction;
-            
+
             target = target || 'dev';
 
             if(testType === 'unit') {
@@ -248,7 +251,6 @@ module.exports = function(grunt) {
             // Process the arguments (specified as subtasks).
             for (var index = 0; index < arguments.length; index++) {
                 var arg = arguments[index];
-                var task = null;
 
                 if (arg === 'lint') {
                     tasks.push('format');
@@ -258,7 +260,7 @@ module.exports = function(grunt) {
 
                 } else {
                     // Unrecognized argument.
-                    console.warn('Unrecognized argument: %s', arg);
+                    grunt.log.warn('Unrecognized argument: %s', arg);
                 }
             }
 
@@ -326,7 +328,7 @@ module.exports = function(grunt) {
     /**
      * Shows help information on how to use the Grunt tasks.
      */
-    grunt.registerTask('help', 
+    grunt.registerTask('help',
         'Displays grunt help documentation',
         function(){
             grunt.log.writeln(HELP_TEXT);
