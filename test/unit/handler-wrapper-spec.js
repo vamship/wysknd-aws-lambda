@@ -19,7 +19,8 @@ let HandlerWrapper = null;
 describe('HandlerWrapper', () => {
     const DEFAULT_APP_NAME = '__default_app_name__';
     const DEFAULT_LAMBDA_NAME = '__function_name__';
-    const DEFAULT_HANDLER = () => {};
+    const DEFAULT_HANDLER = () => {
+    };
 
     function _createWrapper(appName, lambdaName) {
         appName = appName || DEFAULT_APP_NAME;
@@ -118,7 +119,8 @@ describe('HandlerWrapper', () => {
 
                 _loggerProviderMock = {
                     configure: _sinon.spy(),
-                    getLogger: () => {},
+                    getLogger: () => {
+                    },
                     _logger: {
                         trace: _sinon.spy(),
                         debug: _sinon.spy(),

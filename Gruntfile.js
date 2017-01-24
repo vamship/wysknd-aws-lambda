@@ -100,12 +100,12 @@ module.exports = function(grunt) {
     // remain unchanged for most apps, but can be tweaked here if necessary.
     ENV.appRoot = '/' + ENV.appName;
     (function _createTreeRefs(parent, subTree) {
-        for(var folder in subTree) {
+        for (var folder in subTree) {
             var folderName = folder.replace('.', '_');
             parent[folderName] = parent.getSubFolder(folder);
 
             var children = subTree[folder];
-            if(typeof children === 'object') {
+            if (typeof children === 'object') {
                 _createTreeRefs(parent[folder], children);
             }
         }
@@ -124,7 +124,7 @@ module.exports = function(grunt) {
          *  - Remove temporary files and folders.
          */
         clean: {
-            coverage: [ ENV.ROOT.coverage.getPath() ]
+            coverage: [ENV.ROOT.coverage.getPath()]
         },
 
         /**
@@ -133,11 +133,11 @@ module.exports = function(grunt) {
          */
         mocha_istanbul: {
             options: {
-                reportFormats: [ 'text', 'html' ],
+                reportFormats: ['text', 'html'],
                 reporter: 'spec',
                 colors: true
             },
-            default: [ TEST.unit.allFilesPattern('js') ]
+            default: [TEST.unit.allFilesPattern('js')]
         },
 
         /**
@@ -176,8 +176,8 @@ module.exports = function(grunt) {
          */
         watch: {
             allSources: {
-                files: [ LIB.allFilesPattern(), TEST.allFilesPattern() ],
-                tasks: [ ]
+                files: [LIB.allFilesPattern(), TEST.allFilesPattern()],
+                tasks: []
             }
         },
 
@@ -188,7 +188,7 @@ module.exports = function(grunt) {
         bump: {
             options: {
                 push: false
-             }
+            }
         }
     });
 
@@ -204,10 +204,10 @@ module.exports = function(grunt) {
      *  - Testing build artifacts
      *  - Cleaning up build results
      */
-    grunt.registerTask('default', [ 'format',
-                                    'lint',
-                                    'test:unit',
-                                    'clean' ]);
+    grunt.registerTask('default', ['format',
+        'lint',
+        'test:unit',
+        'clean']);
 
     /**
      * Test task - executes client only tests, server only tests or end to end
@@ -221,16 +221,16 @@ module.exports = function(grunt) {
 
             target = target || 'dev';
 
-            if(testType === 'unit') {
+            if (testType === 'unit') {
                 testAction = 'mocha_istanbul:default';
                 var unitTestSuite = grunt.option('unitTestSuite');
-                if(typeof unitTestSuite === 'string' && unitTestSuite.length > 0) {
+                if (typeof unitTestSuite === 'string' && unitTestSuite.length > 0) {
                     grunt.log.writeln('Running test suite: ', unitTestSuite);
                     grunt.config.set('mocha_istanbul.default', TEST.unit.getChildPath(unitTestSuite));
                 }
             }
 
-            if(testAction) {
+            if (testAction) {
                 grunt.task.run(testAction);
             } else {
                 grunt.log.warn('Unrecognized test type. Please see help (grunt help) for task usage information');
@@ -264,7 +264,7 @@ module.exports = function(grunt) {
                 }
             }
 
-            if(tasks.length > 0) {
+            if (tasks.length > 0) {
                 grunt.config.set('watch.allSources.tasks', tasks);
                 grunt.log.writeln('Tasks to run on change: [' + tasks + ']');
                 grunt.task.run('watch:allSources');
@@ -283,23 +283,23 @@ module.exports = function(grunt) {
             var separator = new Array(80).join('-');
             function _showRecursive(root, indent) {
                 var indentChars = '  ';
-                if(!indent) {
+                if (!indent) {
                     indent = 0;
-                } else  {
+                } else {
                     indentChars += '|';
                 }
                 indentChars += new Array(indent).join(' ');
                 indentChars += '|--- ';
                 var hasChildren = false;
-                for(var prop in root) {
+                for (var prop in root) {
                     var member = root[prop];
-                    if(typeof member === 'object') {
+                    if (typeof member === 'object') {
                         var maxLen = 74 - (indentChars.length + prop.length);
                         var status = _utils.padLeft(member.getStatus(), maxLen);
 
                         grunt.log.writeln(indentChars + prop + status);
                         hasChildren = true;
-                        if(_showRecursive(member, indent  + 4)) {
+                        if (_showRecursive(member, indent + 4)) {
                             grunt.log.writeln('  |');
                         }
                     }
@@ -330,7 +330,7 @@ module.exports = function(grunt) {
      */
     grunt.registerTask('help',
         'Displays grunt help documentation',
-        function(){
+        function() {
             grunt.log.writeln(HELP_TEXT);
         }
     );
