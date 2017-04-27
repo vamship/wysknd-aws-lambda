@@ -84,9 +84,10 @@ describe('HandlerWrapper', () => {
         describe('[wrapper behavior]', () => {
             let _loggerProviderMock = null;
 
-            function _initLambdaArgs(alias) {
+            function _initLambdaArgs(alias, event) {
                 const handler = _sinon.spy();
-                const args = new AwsLambdaWrapper(handler, {}, {
+                event = event || {};
+                const args = new AwsLambdaWrapper(handler, event, {
                     alias: alias
                 });
 
@@ -181,6 +182,43 @@ describe('HandlerWrapper', () => {
                 expect(loggerPropsArg.env).to.equal(env);
             });
 
+            it('should not invoke the handler if the input event sets the "__SKIP_EXECUTION" flag to true', () => {
+                const wrapper = _createWrapper();
+                const lambdaArgs = _initLambdaArgs(undefined, {
+                    __SKIP_EXECUTION: true
+                });
+                const actualHandler = _sinon.spy();
+                const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
+
+                expect(actualHandler).to.not.have.been.called;
+
+                _invokeHandler(wrappedHandler, lambdaArgs);
+
+                expect(actualHandler).to.not.have.been.called;
+            });
+
+            it('should invoke the lambda callback to indicate that handler execution is complete, if the __SKIP_EXECUTION flag is set to true', (done) => {
+                const wrapper = _createWrapper();
+                const actualHandler = _sinon.spy();
+                const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
+
+                _consoleHelper.mute();
+                wrappedHandler({
+                    __SKIP_EXECUTION: true
+                }, new AwsLambdaContext({
+                    alias: 'dev'
+                }).context, (err, data) => {
+                    try {
+                        expect(err).to.be.null;
+                        expect(data).to.be.undefined;
+                        done();
+                    } catch (ex) {
+                        done(ex);
+                    }
+                }, {});
+                _consoleHelper.unmute();
+            });
+
             it('should invoke the handler after configuration is complete', () => {
                 const wrapper = _createWrapper();
                 const lambdaArgs = _initLambdaArgs();
@@ -219,7 +257,7 @@ describe('HandlerWrapper', () => {
             it('should handle any unhandled exceptions thrown by the handler (error instance thrown)', (done) => {
                 const wrapper = _createWrapper();
                 const handlerErrorMessage = 'Something went wrong!';
-                const expectedErrorMessage = `[Error] Error executing lambda. Details: ${handlerErrorMessage}`;
+                const expectedErrorMessage = `[Error] Unhandled error executing lambda. Details: ${handlerErrorMessage}`;
 
                 const actualHandler = () => {
                     throw new Error(handlerErrorMessage);
@@ -230,9 +268,13 @@ describe('HandlerWrapper', () => {
                 wrappedHandler({}, new AwsLambdaContext({
                     alias: 'dev'
                 }).context, (err, data) => {
-                    expect(err).to.be.an.instanceOf(Error);
-                    expect(err.message).to.equal(expectedErrorMessage);
-                    done();
+                    try {
+                        expect(err).to.be.an.instanceOf(Error);
+                        expect(err.message).to.equal(expectedErrorMessage);
+                        done();
+                    } catch (ex) {
+                        done(ex);
+                    }
                 }, {});
                 _consoleHelper.unmute();
             });
@@ -240,7 +282,7 @@ describe('HandlerWrapper', () => {
             it('should handle any unhandled exceptions thrown by the handler (string errors thrown)', (done) => {
                 const wrapper = _createWrapper();
                 const handlerErrorMessage = 'Something went wrong (not an exception object)!';
-                const expectedErrorMessage = `[Error] Error executing lambda. Details: ${handlerErrorMessage}`;
+                const expectedErrorMessage = `[Error] Unhandled error executing lambda. Details: ${handlerErrorMessage}`;
 
                 const actualHandler = () => {
                     throw handlerErrorMessage;
@@ -251,9 +293,13 @@ describe('HandlerWrapper', () => {
                 wrappedHandler({}, new AwsLambdaContext({
                     alias: 'dev'
                 }).context, (err, data) => {
-                    expect(err).to.be.an.instanceOf(Error);
-                    expect(err.message).to.equal(expectedErrorMessage);
-                    done();
+                    try {
+                        expect(err).to.be.an.instanceOf(Error);
+                        expect(err.message).to.equal(expectedErrorMessage);
+                        done();
+                    } catch (ex) {
+                        done(ex);
+                    }
                 }, {});
                 _consoleHelper.unmute();
             });
