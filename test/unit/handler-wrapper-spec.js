@@ -180,6 +180,7 @@ describe('HandlerWrapper', () => {
                 const loggerPropsArg = _loggerProviderMock.getLogger.args[0][1];
                 expect(loggerPropsArg).to.be.an('object');
                 expect(loggerPropsArg.env).to.equal(env);
+                expect(loggerPropsArg.executionId).to.be.a('string').and.to.not.be.empty;
             });
 
             it('should not invoke the handler if the input event sets the "__SKIP_EXECUTION" flag to true', () => {
