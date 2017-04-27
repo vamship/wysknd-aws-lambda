@@ -7,6 +7,7 @@ _chai.use(require('sinon-chai'));
 _chai.use(require('chai-as-promised'));
 const expect = _chai.expect;
 
+const _shortId = require('shortid');
 const _testHelper = require('wysknd-test');
 const _testValueProvider = _testHelper.testValueProvider;
 const _consoleHelper = _testHelper.consoleHelper;
@@ -253,11 +254,97 @@ describe('HandlerWrapper', () => {
                 const execInfo = actualHandler.args[0][3];
                 expect(execInfo).to.be.an('object');
                 expect(execInfo.logger).to.equal(_loggerProviderMock._logger);
-                // expect(execInfo.logger.metric).to.be.a('function');
-                // expect(execInfo.logger.timespan).to.be.a('function');
                 expect(execInfo.env).to.equal(env);
                 expect(execInfo.config).to.equal(require('config'));
             });
+
+            describe('[special logger methods]', () => {
+                function _invokeAndGetLogger() {
+                    const wrapper = _createWrapper();
+                    const lambdaArgs = _initLambdaArgs();
+                    const actualHandler = _sinon.spy();
+                    const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
+
+                    _invokeHandler(wrappedHandler, lambdaArgs);
+                    return actualHandler.args[0][3].logger;
+                }
+
+                it('should inject specialized logging methods into the logger object', () => {
+                    const logger = _invokeAndGetLogger();
+
+                    expect(logger.metrics).to.be.a('function');
+                    expect(logger.timespan).to.be.a('function');
+                });
+
+                describe('metrics()', () => {
+                    it('should invoke the logger.info method with a metrics description object when invoked', () => {
+                        const logger = _invokeAndGetLogger();
+                        const infoMethod = logger.info;
+
+                        const metric = _shortId.generate();
+                        const value = _shortId.generate();
+                        const props = {
+                            prop1: _shortId.generate(),
+                            prop2: _shortId.generate()
+                        };
+                        infoMethod.reset();
+                        logger.metrics(metric, value, props);
+
+                        expect(infoMethod).to.have.been.calledOnce;
+                        expect(infoMethod.args[0][0]).to.be.an('object');
+                        expect(infoMethod.args[0][0]).to.deep.equal({
+                            metric,
+                            value,
+                            prop1: props.prop1,
+                            prop2: props.prop2
+                        });
+                    });
+                });
+
+                describe('timespan()', () => {
+                    it('should invoke the logger.info method with a timespan specific metrics description object when invoked', () => {
+                        const logger = _invokeAndGetLogger();
+                        const infoMethod = logger.info;
+
+                        const metric = _shortId.generate();
+                        const startTime = Date.now();
+                        const props = {
+                            prop1: _shortId.generate(),
+                            prop2: _shortId.generate()
+                        };
+                        infoMethod.reset();
+
+                        const minDelta = Date.now() - startTime;
+                        logger.timespan(metric, startTime, props);
+                        const maxDelta = Date.now() - startTime;
+
+                        expect(infoMethod).to.have.been.calledOnce;
+                        expect(infoMethod.args[0][0]).to.be.an('object');
+                        expect(infoMethod.args[0][0].metric).to.equal(metric);
+                        expect(infoMethod.args[0][0].value).to.be.within(minDelta, maxDelta);
+                        expect(infoMethod.args[0][0].prop1).to.equal(props.prop1);
+                        expect(infoMethod.args[0][0].prop2).to.equal(props.prop2);
+                    });
+
+                    it('should use the lambda start time if the startTime parameter is omitted', () => {
+                        const startTime = Date.now();
+                        const logger = _invokeAndGetLogger();
+                        const infoMethod = logger.info;
+
+                        const metric = _shortId.generate();
+                        infoMethod.reset();
+
+                        const minDelta = Date.now() - startTime;
+                        logger.timespan(metric);
+                        const maxDelta = Date.now() - startTime;
+
+                        expect(infoMethod).to.have.been.calledOnce;
+                        expect(infoMethod.args[0][0]).to.be.an('object');
+                        expect(infoMethod.args[0][0].value).to.be.within(minDelta, maxDelta);
+                    });
+                });
+            });
+
 
             it('should handle any unhandled exceptions thrown by the handler (error instance thrown)', (done) => {
                 const wrapper = _createWrapper();
