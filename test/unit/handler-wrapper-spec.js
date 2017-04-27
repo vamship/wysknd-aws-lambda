@@ -10,8 +10,8 @@ const expect = _chai.expect;
 const _testHelper = require('wysknd-test');
 const _testValueProvider = _testHelper.testValueProvider;
 const _consoleHelper = _testHelper.consoleHelper;
-const AwsLambdaWrapper = _testHelper.AwsLambdaWrapper;
-const AwsLambdaContext = _testHelper.AwsLambdaContext;
+const LambdaTestWrapper = _testHelper.aws.LambdaWrapper;
+const LambdaTestContext = _testHelper.aws.LambdaContext;
 const _rewire = require('rewire');
 
 let HandlerWrapper = null;
@@ -87,7 +87,7 @@ describe('HandlerWrapper', () => {
             function _initLambdaArgs(alias, event) {
                 const handler = _sinon.spy();
                 event = event || {};
-                const args = new AwsLambdaWrapper(handler, event, {
+                const args = new LambdaTestWrapper(handler, event, {
                     alias: alias
                 });
 
@@ -108,7 +108,8 @@ describe('HandlerWrapper', () => {
 
             function _invokeHandler(wrappedHandler, lambdaArgs) {
                 _consoleHelper.mute();
-                wrappedHandler(lambdaArgs.event, lambdaArgs.context, lambdaArgs.callback);
+                const context = (new LambdaTestContext(lambdaArgs.contextProps)).context;
+                wrappedHandler(lambdaArgs.event, context, lambdaArgs.callback);
                 _consoleHelper.unmute();
             }
 
@@ -206,7 +207,7 @@ describe('HandlerWrapper', () => {
                 _consoleHelper.mute();
                 wrappedHandler({
                     __LAMBDA_KEEP_WARM: true
-                }, new AwsLambdaContext({
+                }, new LambdaTestContext({
                     alias: 'dev'
                 }).context, (err, data) => {
                     try {
@@ -224,6 +225,7 @@ describe('HandlerWrapper', () => {
                 const wrapper = _createWrapper();
                 const lambdaArgs = _initLambdaArgs();
                 const actualHandler = _sinon.spy();
+                const expectedContext = (new LambdaTestContext(lambdaArgs.contextProps)).context;
                 const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
 
                 expect(actualHandler).to.not.have.been.called;
@@ -232,7 +234,7 @@ describe('HandlerWrapper', () => {
 
                 expect(actualHandler).to.have.been.calledOnce;
                 expect(actualHandler.args[0][0]).to.equal(lambdaArgs.event);
-                expect(actualHandler.args[0][1]).to.equal(lambdaArgs.context);
+                expect(actualHandler.args[0][1]).to.deep.equal(expectedContext);
                 expect(actualHandler.args[0][2]).to.equal(lambdaArgs.callback);
             });
 
@@ -251,6 +253,8 @@ describe('HandlerWrapper', () => {
                 const execInfo = actualHandler.args[0][3];
                 expect(execInfo).to.be.an('object');
                 expect(execInfo.logger).to.equal(_loggerProviderMock._logger);
+                // expect(execInfo.logger.metric).to.be.a('function');
+                // expect(execInfo.logger.timespan).to.be.a('function');
                 expect(execInfo.env).to.equal(env);
                 expect(execInfo.config).to.equal(require('config'));
             });
@@ -266,7 +270,7 @@ describe('HandlerWrapper', () => {
                 const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
 
                 _consoleHelper.mute();
-                wrappedHandler({}, new AwsLambdaContext({
+                wrappedHandler({}, new LambdaTestContext({
                     alias: 'dev'
                 }).context, (err, data) => {
                     try {
@@ -291,7 +295,7 @@ describe('HandlerWrapper', () => {
                 const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
 
                 _consoleHelper.mute();
-                wrappedHandler({}, new AwsLambdaContext({
+                wrappedHandler({}, new LambdaTestContext({
                     alias: 'dev'
                 }).context, (err, data) => {
                     try {
