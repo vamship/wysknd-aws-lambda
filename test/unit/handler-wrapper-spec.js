@@ -183,10 +183,10 @@ describe('HandlerWrapper', () => {
                 expect(loggerPropsArg.executionId).to.be.a('string').and.to.not.be.empty;
             });
 
-            it('should not invoke the handler if the input event sets the "__SKIP_EXECUTION" flag to true', () => {
+            it('should not invoke the handler if the input event sets the "__LAMBDA_KEEP_WARM" flag to true', () => {
                 const wrapper = _createWrapper();
                 const lambdaArgs = _initLambdaArgs(undefined, {
-                    __SKIP_EXECUTION: true
+                    __LAMBDA_KEEP_WARM: true
                 });
                 const actualHandler = _sinon.spy();
                 const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
@@ -198,14 +198,14 @@ describe('HandlerWrapper', () => {
                 expect(actualHandler).to.not.have.been.called;
             });
 
-            it('should invoke the lambda callback to indicate that handler execution is complete, if the __SKIP_EXECUTION flag is set to true', (done) => {
+            it('should invoke the lambda callback to indicate that handler execution is complete, if the __LAMBDA_KEEP_WARM flag is set to true', (done) => {
                 const wrapper = _createWrapper();
                 const actualHandler = _sinon.spy();
                 const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
 
                 _consoleHelper.mute();
                 wrappedHandler({
-                    __SKIP_EXECUTION: true
+                    __LAMBDA_KEEP_WARM: true
                 }, new AwsLambdaContext({
                     alias: 'dev'
                 }).context, (err, data) => {
