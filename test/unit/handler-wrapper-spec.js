@@ -7,17 +7,18 @@ _chai.use(require('sinon-chai'));
 _chai.use(require('chai-as-promised'));
 const expect = _chai.expect;
 
-const _shortId = require('shortid');
 const _testHelper = require('wysknd-test');
 const _testValueProvider = _testHelper.testValueProvider;
 const _consoleHelper = _testHelper.consoleHelper;
 const LambdaTestWrapper = _testHelper.aws.LambdaWrapper;
 const LambdaTestContext = _testHelper.aws.LambdaContext;
+const ObjectMock = _testHelper.ObjectMock;
 const _rewire = require('rewire');
 
 let HandlerWrapper = null;
 
 describe('HandlerWrapper', () => {
+    let _lambdaLoggerMock = null;
     const DEFAULT_APP_NAME = '__default_app_name__';
     const DEFAULT_LAMBDA_NAME = '__function_name__';
     const DEFAULT_HANDLER = () => {
@@ -30,7 +31,21 @@ describe('HandlerWrapper', () => {
     }
 
     beforeEach(() => {
+        const loggerInstance = {
+            trace: _sinon.spy(),
+            debug: _sinon.spy(),
+            info: _sinon.spy(),
+            warn: _sinon.spy(),
+            error: _sinon.spy(),
+            fatal: _sinon.spy(),
+            metrics: _sinon.spy(),
+            timespan: _sinon.spy()
+        };
+        _lambdaLoggerMock = (new ObjectMock()).addMock('getLogger', loggerInstance, true);
+        _lambdaLoggerMock._loggerInstance = loggerInstance;
+
         HandlerWrapper = _rewire('../../lib/handler-wrapper');
+        HandlerWrapper.__set__('LambdaLogger', _lambdaLoggerMock.ctor);
     });
 
     describe('ctor()', () => {
@@ -83,8 +98,6 @@ describe('HandlerWrapper', () => {
         });
 
         describe('[wrapper behavior]', () => {
-            let _loggerProviderMock = null;
-
             function _initLambdaArgs(alias, event) {
                 const handler = _sinon.spy();
                 event = event || {};
@@ -95,16 +108,32 @@ describe('HandlerWrapper', () => {
                 return args;
             }
 
-            function _testEnv(alias, env) {
-                env = env || alias;
-
+            function _testAlias(alias, expectedAlias) {
                 const wrapper = _createWrapper();
                 const lambdaArgs = _initLambdaArgs(alias);
                 const wrappedHandler = wrapper.wrap(lambdaArgs.handler, DEFAULT_LAMBDA_NAME);
 
-                process.env.NODE_ENV = '';
+                expect(lambdaArgs.handler).to.not.have.been.called;
                 _invokeHandler(wrappedHandler, lambdaArgs);
-                expect(process.env.NODE_ENV).to.equal(env);
+                expect(lambdaArgs.handler).to.have.been.calledOnce;
+                const ext = lambdaArgs.handler.args[0][3];
+                expect(ext).to.be.an('object');
+                expect(ext.alias).to.equal(expectedAlias);
+            }
+
+            function _testEnv(alias, expectedAlias) {
+                // This parameter is deprecated, but supported for backward
+                // compatibility
+                const wrapper = _createWrapper();
+                const lambdaArgs = _initLambdaArgs(alias);
+                const wrappedHandler = wrapper.wrap(lambdaArgs.handler, DEFAULT_LAMBDA_NAME);
+
+                expect(lambdaArgs.handler).to.not.have.been.called;
+                _invokeHandler(wrappedHandler, lambdaArgs);
+                expect(lambdaArgs.handler).to.have.been.calledOnce;
+                const ext = lambdaArgs.handler.args[0][3];
+                expect(ext).to.be.an('object');
+                expect(ext.env).to.equal(expectedAlias);
             }
 
             function _invokeHandler(wrappedHandler, lambdaArgs) {
@@ -117,40 +146,37 @@ describe('HandlerWrapper', () => {
             beforeEach(() => {
                 //Initialize the config module so that tests don't result in
                 //warning messages.
-                process.env.NODE_ENV = '';
                 require('config');
-
-                _loggerProviderMock = {
-                    configure: _sinon.spy(),
-                    getLogger: () => {
-                    },
-                    _logger: {
-                        trace: _sinon.spy(),
-                        debug: _sinon.spy(),
-                        info: _sinon.spy(),
-                        warn: _sinon.spy(),
-                        error: _sinon.spy(),
-                        fatal: _sinon.spy()
-                    }
-                };
-                _loggerProviderMock.getLogger = _sinon.stub(_loggerProviderMock, 'getLogger', () => {
-                    return _loggerProviderMock._logger;
-                });
-
-                HandlerWrapper.__set__('_loggerProvider', _loggerProviderMock);
             });
 
-            it('should set the NODE_ENV variable to "na" if the lambda invocation is unqualified', () => {
-                _testEnv(undefined, 'na');
+            it('should set the environment value to "" if the lambda invocation is unqualified', () => {
+                // This parameter is deprecated, but supported for backward compatibility
+                _testEnv(undefined, '');
             });
 
-            it('should set the NODE_ENV variable to "na" if the lambda invocation qualified by the "$LATEST" alias', () => {
-                _testEnv('$LATEST', 'na');
+            it('should set the environment value to "" if the lambda invocation qualified by the "$LATEST" alias', () => {
+                // This parameter is deprecated, but supported for backward compatibility
+                _testEnv('$LATEST', '');
             });
 
-            it('should set the NODE_ENV variable to the lambda invocation alias value', () => {
+            it('should set the environment value to the lambda invocation alias value', () => {
+                // This parameter is deprecated, but supported for backward compatibility
                 ['dev', 'stage', 'qa', 'prod', 'foo', 'bar'].forEach((env) => {
-                    _testEnv('dev');
+                    _testEnv(env, env);
+                });
+            });
+
+            it('should set the lambda alias value to "" if the lambda invocation is unqualified', () => {
+                _testAlias(undefined, '');
+            });
+
+            it('should set the lambda alias value to "" if the lambda invocation qualified by the "$LATEST" alias', () => {
+                _testAlias('$LATEST', '');
+            });
+
+            it('should set the lambda alias value to the lambda invocation alias value', () => {
+                ['dev', 'stage', 'qa', 'prod', 'foo', 'bar'].forEach((env) => {
+                    _testAlias(env, env);
                 });
             });
 
@@ -159,30 +185,29 @@ describe('HandlerWrapper', () => {
                 const config = require('config');
                 const lambdaName = DEFAULT_LAMBDA_NAME;
                 const env = 'dev';
+                const startTime = Date.now();
 
                 const wrapper = _createWrapper(appName);
                 const lambdaArgs = _initLambdaArgs(env);
                 const wrappedHandler = wrapper.wrap(lambdaArgs.handler, lambdaName);
 
-                expect(_loggerProviderMock.configure).to.not.have.been.called;
-                expect(_loggerProviderMock.getLogger).to.not.have.been.called;
+                const lambdaLoggerCtor = _lambdaLoggerMock.ctor;
+                const getLoggerMethod = _lambdaLoggerMock.instance.getLogger;
+
+                expect(lambdaLoggerCtor).to.not.have.been.called;
+                expect(getLoggerMethod).to.not.have.been.called;
 
                 _invokeHandler(wrappedHandler, lambdaArgs);
 
-                expect(_loggerProviderMock.configure).to.have.been.calledOnce;
-                expect(_loggerProviderMock.getLogger).to.have.been.calledOnce;
+                expect(lambdaLoggerCtor).to.have.been.calledOnce;
+                expect(getLoggerMethod).to.have.been.calledOnce;
 
-                const loggerProviderCfg = _loggerProviderMock.configure.args[0][0];
-                expect(loggerProviderCfg.appName).to.equal(appName);
-                expect(loggerProviderCfg.logLevel).to.equal(config.get('log.level'));
+                expect(lambdaLoggerCtor.args[0][0]).to.equal(appName);
+                expect(lambdaLoggerCtor.args[0][1]).to.equal(config.get('log.level'));
 
-                const loggerNameArg = _loggerProviderMock.getLogger.args[0][0];
-                expect(loggerNameArg).to.equal(lambdaName);
-
-                const loggerPropsArg = _loggerProviderMock.getLogger.args[0][1];
-                expect(loggerPropsArg).to.be.an('object');
-                expect(loggerPropsArg.env).to.equal(env);
-                expect(loggerPropsArg.executionId).to.be.a('string').and.to.not.be.empty;
+                expect(getLoggerMethod.args[0][0]).to.equal(lambdaName);
+                expect(getLoggerMethod.args[0][1]).to.equal(env);
+                expect(getLoggerMethod.args[0][2]).to.be.within(startTime, Date.now());
             });
 
             it('should not invoke the handler if the input event sets the "__LAMBDA_KEEP_WARM" flag to true', () => {
@@ -253,98 +278,10 @@ describe('HandlerWrapper', () => {
                 expect(actualHandler).to.have.been.calledOnce;
                 const execInfo = actualHandler.args[0][3];
                 expect(execInfo).to.be.an('object');
-                expect(execInfo.logger).to.equal(_loggerProviderMock._logger);
+                expect(execInfo.logger).to.equal(_lambdaLoggerMock._loggerInstance);
                 expect(execInfo.env).to.equal(env);
                 expect(execInfo.config).to.equal(require('config'));
             });
-
-            describe('[special logger methods]', () => {
-                function _invokeAndGetLogger() {
-                    const wrapper = _createWrapper();
-                    const lambdaArgs = _initLambdaArgs();
-                    const actualHandler = _sinon.spy();
-                    const wrappedHandler = wrapper.wrap(actualHandler, DEFAULT_LAMBDA_NAME);
-
-                    _invokeHandler(wrappedHandler, lambdaArgs);
-                    return actualHandler.args[0][3].logger;
-                }
-
-                it('should inject specialized logging methods into the logger object', () => {
-                    const logger = _invokeAndGetLogger();
-
-                    expect(logger.metrics).to.be.a('function');
-                    expect(logger.timespan).to.be.a('function');
-                });
-
-                describe('metrics()', () => {
-                    it('should invoke the logger.info method with a metrics description object when invoked', () => {
-                        const logger = _invokeAndGetLogger();
-                        const infoMethod = logger.info;
-
-                        const metric = _shortId.generate();
-                        const value = _shortId.generate();
-                        const props = {
-                            prop1: _shortId.generate(),
-                            prop2: _shortId.generate()
-                        };
-                        infoMethod.reset();
-                        logger.metrics(metric, value, props);
-
-                        expect(infoMethod).to.have.been.calledOnce;
-                        expect(infoMethod.args[0][0]).to.be.an('object');
-                        expect(infoMethod.args[0][0]).to.deep.equal({
-                            metric,
-                            value,
-                            prop1: props.prop1,
-                            prop2: props.prop2
-                        });
-                    });
-                });
-
-                describe('timespan()', () => {
-                    it('should invoke the logger.info method with a timespan specific metrics description object when invoked', () => {
-                        const logger = _invokeAndGetLogger();
-                        const infoMethod = logger.info;
-
-                        const metric = _shortId.generate();
-                        const startTime = Date.now();
-                        const props = {
-                            prop1: _shortId.generate(),
-                            prop2: _shortId.generate()
-                        };
-                        infoMethod.reset();
-
-                        const minDelta = Date.now() - startTime;
-                        logger.timespan(metric, startTime, props);
-                        const maxDelta = Date.now() - startTime;
-
-                        expect(infoMethod).to.have.been.calledOnce;
-                        expect(infoMethod.args[0][0]).to.be.an('object');
-                        expect(infoMethod.args[0][0].metric).to.equal(metric);
-                        expect(infoMethod.args[0][0].value).to.be.within(minDelta, maxDelta);
-                        expect(infoMethod.args[0][0].prop1).to.equal(props.prop1);
-                        expect(infoMethod.args[0][0].prop2).to.equal(props.prop2);
-                    });
-
-                    it('should use the lambda start time if the startTime parameter is omitted', () => {
-                        const startTime = Date.now();
-                        const logger = _invokeAndGetLogger();
-                        const infoMethod = logger.info;
-
-                        const metric = _shortId.generate();
-                        infoMethod.reset();
-
-                        const minDelta = Date.now() - startTime;
-                        logger.timespan(metric);
-                        const maxDelta = Date.now() - startTime;
-
-                        expect(infoMethod).to.have.been.calledOnce;
-                        expect(infoMethod.args[0][0]).to.be.an('object');
-                        expect(infoMethod.args[0][0].value).to.be.within(minDelta, maxDelta);
-                    });
-                });
-            });
-
 
             it('should handle any unhandled exceptions thrown by the handler (error instance thrown)', (done) => {
                 const wrapper = _createWrapper();
