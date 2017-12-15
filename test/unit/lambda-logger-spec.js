@@ -18,7 +18,7 @@ let LambdaLogger = null;
 describe('LambdaLogger', () => {
     let _loggerProviderMock = null;
 
-    function _createLogger(appName, lambdaName, logLevel) {
+    function _createLogger(appName, logLevel) {
         appName = appName || `appName_${_shortId.generate()}`;
         logLevel = logLevel || 'info';
 
