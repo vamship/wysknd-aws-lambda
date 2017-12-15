@@ -1,6 +1,7 @@
 /* jshint node:true, expr:true */
 'use strict';
 
+const _shortId = require('shortid');
 const _sinon = require('sinon');
 const _chai = require('chai');
 _chai.use(require('sinon-chai'));
@@ -14,11 +15,14 @@ const LambdaTestWrapper = _testHelper.aws.LambdaWrapper;
 const LambdaTestContext = _testHelper.aws.LambdaContext;
 const ObjectMock = _testHelper.ObjectMock;
 const _rewire = require('rewire');
+const _dp = require('dot-prop');
 
 let HandlerWrapper = null;
 
 describe('HandlerWrapper', () => {
     let _lambdaLoggerMock = null;
+    let _lambdaConfigMock = null;
+
     const DEFAULT_APP_NAME = '__default_app_name__';
     const DEFAULT_LAMBDA_NAME = '__function_name__';
     const DEFAULT_HANDLER = () => {
@@ -44,8 +48,19 @@ describe('HandlerWrapper', () => {
         _lambdaLoggerMock = (new ObjectMock()).addMock('getLogger', loggerInstance, true);
         _lambdaLoggerMock._loggerInstance = loggerInstance;
 
+        const configInstance = {
+            log: {
+                level: 'error'
+            }
+        };
+        _lambdaConfigMock = (new ObjectMock()).addMock('get', (key) => {
+            return _dp.get(configInstance, key);
+        }, true);
+        _lambdaConfigMock._configInstance = configInstance;
+
         HandlerWrapper = _rewire('../../lib/handler-wrapper');
         HandlerWrapper.__set__('LambdaLogger', _lambdaLoggerMock.ctor);
+        HandlerWrapper.__set__('LambdaConfig', _lambdaConfigMock.ctor);
     });
 
     describe('ctor()', () => {
@@ -143,12 +158,6 @@ describe('HandlerWrapper', () => {
                 _consoleHelper.unmute();
             }
 
-            beforeEach(() => {
-                //Initialize the config module so that tests don't result in
-                //warning messages.
-                require('config');
-            });
-
             it('should set the environment value to "" if the lambda invocation is unqualified', () => {
                 // This parameter is deprecated, but supported for backward compatibility
                 _testEnv(undefined, '');
@@ -180,15 +189,19 @@ describe('HandlerWrapper', () => {
                 });
             });
 
-            it('should configure the logger provider with the correct app name and log level', () => {
-                const appName = '__some_app__';
-                const config = require('config');
-                const lambdaName = DEFAULT_LAMBDA_NAME;
-                const env = 'dev';
+            it('should configure the logger with the correct parameters', () => {
+                const appName = `appName_${_shortId.generate()}`;
+                const lambdaName = `lambdaName_${_shortId.generate()}`;
+                const alias = `alias_${_shortId.generate()}`;
                 const startTime = Date.now();
+                const level = 'trace';
+
+                _lambdaConfigMock._configInstance.log = {
+                    level
+                };
 
                 const wrapper = _createWrapper(appName);
-                const lambdaArgs = _initLambdaArgs(env);
+                const lambdaArgs = _initLambdaArgs(alias);
                 const wrappedHandler = wrapper.wrap(lambdaArgs.handler, lambdaName);
 
                 const lambdaLoggerCtor = _lambdaLoggerMock.ctor;
@@ -203,11 +216,32 @@ describe('HandlerWrapper', () => {
                 expect(getLoggerMethod).to.have.been.calledOnce;
 
                 expect(lambdaLoggerCtor.args[0][0]).to.equal(appName);
-                expect(lambdaLoggerCtor.args[0][1]).to.equal(config.get('log.level'));
+                expect(lambdaLoggerCtor.args[0][1]).to.equal(level);
 
                 expect(getLoggerMethod.args[0][0]).to.equal(lambdaName);
-                expect(getLoggerMethod.args[0][1]).to.equal(env);
+                expect(getLoggerMethod.args[0][1]).to.equal(alias);
                 expect(getLoggerMethod.args[0][2]).to.be.within(startTime, Date.now());
+            });
+
+            it('should configure the config object with the correct parameters', () => {
+                const appName = `appName_${_shortId.generate()}`;
+                const lambdaName = `lambdaName_${_shortId.generate()}`;
+                const alias = `alias_${_shortId.generate()}`;
+
+                const wrapper = _createWrapper(appName);
+                const lambdaArgs = _initLambdaArgs(alias);
+                const wrappedHandler = wrapper.wrap(lambdaArgs.handler, lambdaName);
+
+                const lambdaConfigCtor = _lambdaConfigMock.ctor;
+
+                expect(lambdaConfigCtor).to.not.have.been.called;
+
+                _invokeHandler(wrappedHandler, lambdaArgs);
+
+                expect(lambdaConfigCtor).to.have.been.calledOnce;
+
+                expect(lambdaConfigCtor.args[0][0]).to.equal(appName);
+                expect(lambdaConfigCtor.args[0][1]).to.equal(alias);
             });
 
             it('should not invoke the handler if the input event sets the "__LAMBDA_KEEP_WARM" flag to true', () => {
@@ -280,7 +314,7 @@ describe('HandlerWrapper', () => {
                 expect(execInfo).to.be.an('object');
                 expect(execInfo.logger).to.equal(_lambdaLoggerMock._loggerInstance);
                 expect(execInfo.env).to.equal(env);
-                expect(execInfo.config).to.equal(require('config'));
+                expect(execInfo.config).to.equal(_lambdaConfigMock.instance);
             });
 
             it('should handle any unhandled exceptions thrown by the handler (error instance thrown)', (done) => {

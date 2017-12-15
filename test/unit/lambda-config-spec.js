@@ -92,7 +92,12 @@ describe('LambdaConfig', () => {
             expect(configureMethod.args[0][0]).to.equal(appName);
 
             const defaultProps = configureMethod.args[0][1];
-            expect(defaultProps).to.be.an('object').and.to.be.empty;
+            expect(defaultProps).to.be.an('object');
+            expect(defaultProps).to.deep.equal({
+                log: {
+                    level: 'info'
+                }
+            });
         });
     });
 
