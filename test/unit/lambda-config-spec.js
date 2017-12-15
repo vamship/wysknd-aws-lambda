@@ -40,8 +40,8 @@ describe('LambdaConfig', () => {
             .addMock('get', (config, key) => {
                 return _dp.get(config, key);
             }, true).addMock('has', (config, key) => {
-                return _dp.has(config, key);
-            }, true);
+            return _dp.has(config, key);
+        }, true);
 
         LambdaConfig = _rewire('../../lib/lambda-config');
         LambdaConfig.__set__('_rc', _rcMock.instance._init);
